@@ -287,12 +287,15 @@
 
         renderBills(result.bills || []);
 
+
       } catch (error) {
 
         console.error(error);
 
         currentBillElement.innerHTML =
-          '<p class="empty">ไม่สามารถโหลดใบแจ้งค่าใช้จ่ายได้</p>';
+          '<p class="empty">ข้อผิดพลาด: ' +
+          escapeHTML(error.message || String(error)) +
+          '</p>';
 
         historyElement.innerHTML =
           '<p class="empty">ไม่สามารถโหลดประวัติบิลได้</p>';
@@ -303,7 +306,6 @@
 
       }
 
-    }
 
     function renderBills(bills) {
 
