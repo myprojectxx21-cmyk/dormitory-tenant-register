@@ -1,0 +1,239 @@
+
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ลงทะเบียนผู้เช่าหอพัก</title>
+
+  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: Arial, sans-serif;
+      background: #f1f5f9;
+      margin: 0;
+      padding: 20px;
+      color: #1e293b;
+    }
+
+    .container {
+      max-width: 480px;
+      margin: 30px auto;
+      background: white;
+      padding: 25px;
+      border-radius: 16px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+    }
+
+    h1 {
+      text-align: center;
+      font-size: 24px;
+      margin-bottom: 10px;
+    }
+
+    .subtitle {
+      text-align: center;
+      color: #64748b;
+      margin-bottom: 25px;
+    }
+
+    label {
+      display: block;
+      margin-top: 18px;
+      margin-bottom: 8px;
+      font-weight: bold;
+    }
+
+    input {
+      width: 100%;
+      padding: 12px;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      font-size: 16px;
+    }
+
+    input:disabled {
+      background: #f1f5f9;
+    }
+
+    button {
+      width: 100%;
+      padding: 14px;
+      margin-top: 20px;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+
+    .login-btn {
+      background: #06c755;
+      color: white;
+    }
+
+    .register-btn {
+      background: #2563eb;
+      color: white;
+    }
+
+    button:disabled {
+      background: #94a3b8;
+      cursor: not-allowed;
+    }
+
+    #statusMessage {
+      text-align: center;
+      margin-top: 15px;
+      color: #64748b;
+      font-size: 14px;
+    }
+
+    .line-info {
+      background: #f0fdf4;
+      padding: 15px;
+      border-radius: 10px;
+      margin-top: 20px;
+    }
+
+    .hidden {
+      display: none;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="container">
+
+    <h1>ลงทะเบียนผู้เช่าหอพัก</h1>
+
+    <p class="subtitle">
+      เชื่อมบัญชี LINE เพื่อใช้งานระบบแจ้งค่าหอพัก
+    </p>
+
+    <button id="lineLoginButton" class="login-btn" onclick="loginWithLine()">
+      เข้าสู่ระบบด้วย LINE
+    </button>
+
+    <div id="lineInfo" class="line-info hidden">
+      <p><strong>ชื่อ LINE:</strong></p>
+      <input type="text" id="lineDisplayName" disabled>
+
+      <p id="loginSuccess" style="color:green;">
+        เชื่อมต่อ LINE สำเร็จ
+      </p>
+    </div>
+
+    <form id="registrationForm" class="hidden">
+
+      <label for="roomNumber">หมายเลขห้องพัก</label>
+      <input
+        type="text"
+        id="roomNumber"
+        placeholder="กรอกหมายเลขห้อง"
+        required
+      >
+
+      <label for="registrationCode">รหัสลงทะเบียน</label>
+      <input
+        type="text"
+        id="registrationCode"
+        placeholder="กรอกรหัสที่ได้รับจากเจ้าของหอพัก"
+        required
+      >
+
+      <button type="submit" class="register-btn" disabled>
+        ลงทะเบียน
+      </button>
+
+    </form>
+
+    <p id="statusMessage">
+      กำลังตรวจสอบการเชื่อมต่อ LINE...
+    </p>
+
+  </div>
+
+  <script>
+
+    // LIFF ID ของระบบหลัก
+    const LIFF_ID = "2012780706-TbXq1mRS";
+
+    let lineProfile = null;
+
+    async function initializeLiff() {
+
+      const status = document.getElementById("statusMessage");
+
+      try {
+
+        await liff.init({
+          liffId: LIFF_ID
+        });
+
+        if (liff.isLoggedIn()) {
+
+          lineProfile = await liff.getProfile();
+
+          document.getElementById("lineDisplayName").value =
+            lineProfile.displayName;
+
+          document.getElementById("lineInfo").classList.remove("hidden");
+
+          document.getElementById("registrationForm")
+            .classList.remove("hidden");
+
+          document.getElementById("lineLoginButton")
+            .classList.add("hidden");
+
+          document.querySelector(".register-btn").disabled = false;
+
+          status.textContent =
+            "เชื่อมต่อ LINE สำเร็จ กรุณากรอกข้อมูลลงทะเบียน";
+
+        } else {
+
+          status.textContent =
+            "กรุณาเข้าสู่ระบบด้วย LINE";
+
+        }
+
+      } catch (error) {
+
+        console.error(error);
+
+        status.textContent =
+          "ไม่สามารถเชื่อมต่อ LINE ได้";
+
+      }
+
+    }
+
+    function loginWithLine() {
+
+      liff.login();
+
+    }
+
+    document.getElementById("registrationForm")
+      .addEventListener("submit", function(event) {
+
+        event.preventDefault();
+
+        document.getElementById("statusMessage")
+          .textContent =
+          "หน้าเว็บพร้อมสำหรับขั้นตอนเชื่อมต่อระบบลงทะเบียน";
+
+      });
+
+    initializeLiff();
+
+  </script>
+
+</body>
+</html>
