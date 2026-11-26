@@ -230,6 +230,7 @@
 
     }
 
+
     async function loadBills() {
 
       const currentBillElement =
@@ -242,12 +243,15 @@
         document.getElementById("refreshButton");
 
       currentBillElement.innerHTML =
-        '<p id="statusMessage">กำลังโหลดใบแจ้งค่าใช้จ่าย...</p>';
+        '<p class="empty">กำลังโหลดใบแจ้งค่าใช้จ่าย...</p>';
 
       historyElement.innerHTML =
         '<p class="empty">กำลังโหลดประวัติบิล...</p>';
 
       refreshButton.disabled = true;
+
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 15000);
 
       try {
 
@@ -259,7 +263,7 @@
         const idToken = liff.getIDToken();
 
         if (!idToken) {
-          throw new Error("ไม่พบ ID Token");
+          throw new Error("ไม่พบ ID Token จาก LINE");
         }
 
         const response = await fetch(API_URL, {
@@ -271,14 +275,27 @@
           body: JSON.stringify({
             action: "getBills",
             idToken: idToken
-          })
+          }),
+          signal: controller.signal
         });
 
-        const result = JSON.parse(await response.text());
+        if (!response.ok) {
+          throw new Error("HTTP " + response.status);
+        }
+
+        const responseText = await response.text();
+
+        let result;
+
+        try {
+          result = JSON.parse(responseText);
+        } catch (parseError) {
+          throw new Error("API ตอบกลับไม่ใช่ JSON");
+        }
 
         if (!result.success) {
           throw new Error(
-            result.message || "ไม่สามารถดึงข้อมูลบิลได้"
+            result.message || "API ไม่สามารถดึงข้อมูลบิลได้"
           );
         }
 
@@ -287,14 +304,21 @@
 
         renderBills(result.bills || []);
 
-
       } catch (error) {
 
-        console.error(error);
+        console.error("getBills error:", error);
+
+        let message;
+
+        if (error.name === "AbortError") {
+          message = "API ใช้เวลานานเกิน 15 วินาที";
+        } else {
+          message = error.message || "เกิดข้อผิดพลาด";
+        }
 
         currentBillElement.innerHTML =
           '<p class="empty">ข้อผิดพลาด: ' +
-          escapeHTML(error.message || String(error)) +
+          escapeHTML(message) +
           '</p>';
 
         historyElement.innerHTML =
@@ -302,9 +326,13 @@
 
       } finally {
 
+        clearTimeout(timeoutId);
         refreshButton.disabled = false;
 
       }
+
+    }
+
 
 
     function renderBills(bills) {
