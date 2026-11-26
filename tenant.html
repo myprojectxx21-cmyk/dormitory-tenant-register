@@ -1,0 +1,542 @@
+
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ระบบค่าหอพัก</title>
+
+  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: Arial, sans-serif;
+      background: #f3f6f9;
+      margin: 0;
+      padding: 20px;
+      color: #333;
+    }
+
+    .container {
+      max-width: 700px;
+      margin: auto;
+    }
+
+    .header {
+      background: #06c755;
+      color: white;
+      padding: 24px;
+      border-radius: 16px;
+      margin-bottom: 20px;
+    }
+
+    .header h1 {
+      margin: 0 0 8px;
+      font-size: 24px;
+    }
+
+    .header p {
+      margin: 0;
+    }
+
+    .card {
+      background: white;
+      padding: 20px;
+      margin-bottom: 16px;
+      border-radius: 14px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    }
+
+    .card h2 {
+      margin-top: 0;
+      font-size: 20px;
+    }
+
+    .bill {
+      border: 1px solid #e5e7eb;
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 14px;
+    }
+
+    .bill-header {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .amount {
+      font-size: 24px;
+      font-weight: bold;
+      color: #06a64f;
+      margin: 12px 0;
+    }
+
+    .detail {
+      margin: 8px 0;
+      font-size: 14px;
+    }
+
+    .status {
+      display: inline-block;
+      padding: 5px 12px;
+      border-radius: 20px;
+      background: #eee;
+      font-size: 13px;
+    }
+
+    .paid {
+      background: #dcfce7;
+      color: #166534;
+    }
+
+    .unpaid {
+      background: #fef3c7;
+      color: #92400e;
+    }
+
+    .button {
+      display: inline-block;
+      background: #06c755;
+      color: white;
+      text-decoration: none;
+      border: none;
+      padding: 12px 16px;
+      border-radius: 10px;
+      cursor: pointer;
+      font-size: 16px;
+      margin-top: 10px;
+    }
+
+    .button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .pdf-button {
+      background: #2563eb;
+    }
+
+    #statusMessage {
+      text-align: center;
+      padding: 16px;
+      color: #555;
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    .empty {
+      text-align: center;
+      color: #777;
+      padding: 20px;
+    }
+
+    .bill-list {
+      margin-top: 15px;
+    }
+
+    .bill-detail-list {
+      padding-left: 18px;
+      line-height: 1.8;
+    }
+
+    .bill-detail-list li {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    hr {
+      border: none;
+      border-top: 1px solid #eee;
+      margin: 12px 0;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="container">
+
+    <div class="header">
+      <h1>ระบบค่าหอพัก</h1>
+      <p id="tenantInfo">กำลังตรวจสอบข้อมูลผู้เช่า...</p>
+    </div>
+
+    <div class="card">
+      <h2>ใบแจ้งค่าใช้จ่ายปัจจุบัน</h2>
+      <div id="currentBill">
+        <p id="statusMessage">กำลังโหลดข้อมูล...</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>ประวัติใบแจ้งหนี้</h2>
+      <div id="billHistory" class="bill-list">
+        <p class="empty">กำลังโหลดข้อมูล...</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <button id="refreshButton" class="button" onclick="loadBills()">
+        โหลดข้อมูลอีกครั้ง
+      </button>
+    </div>
+
+  </div>
+
+  <script>
+
+    // LIFF ID
+    const LIFF_ID = "2012780706-TbXq1mRS";
+
+    // Registration API
+    const API_URL = "https://script.google.com/macros/s/AKfycbzLZPf-QHhwFNU5onwV8toy6rwEvR6qJ8UfW36jX6zSI8b9ujoEaGtt5_Ai1jP8hpCWHg/exec";
+
+    async function initializeLiff() {
+
+      const statusMessage = document.getElementById("statusMessage");
+
+      try {
+
+        await liff.init({
+          liffId: LIFF_ID
+        });
+
+        if (!liff.isLoggedIn()) {
+
+          liff.login();
+          return;
+
+        }
+
+        await loadBills();
+
+      } catch (error) {
+
+        console.error(error);
+
+        statusMessage.textContent =
+          "ไม่สามารถเชื่อมต่อ LINE ได้";
+
+      }
+
+    }
+
+    async function loadBills() {
+
+      const currentBillElement =
+        document.getElementById("currentBill");
+
+      const historyElement =
+        document.getElementById("billHistory");
+
+      const refreshButton =
+        document.getElementById("refreshButton");
+
+      currentBillElement.innerHTML =
+        '<p id="statusMessage">กำลังโหลดใบแจ้งค่าใช้จ่าย...</p>';
+
+      historyElement.innerHTML =
+        '<p class="empty">กำลังโหลดประวัติบิล...</p>';
+
+      refreshButton.disabled = true;
+
+      try {
+
+        if (!liff.isLoggedIn()) {
+          liff.login();
+          return;
+        }
+
+        const idToken = liff.getIDToken();
+
+        if (!idToken) {
+          throw new Error("ไม่พบ ID Token");
+        }
+
+        const response = await fetch(API_URL, {
+          method: "POST",
+          redirect: "follow",
+          headers: {
+            "Content-Type": "text/plain;charset=utf-8"
+          },
+          body: JSON.stringify({
+            action: "getBills",
+            idToken: idToken
+          })
+        });
+
+        const result = JSON.parse(await response.text());
+
+        if (!result.success) {
+          throw new Error(
+            result.message || "ไม่สามารถดึงข้อมูลบิลได้"
+          );
+        }
+
+        document.getElementById("tenantInfo").textContent =
+          "Tenant ID: " + result.tenantId;
+
+        renderBills(result.bills || []);
+
+      } catch (error) {
+
+        console.error(error);
+
+        currentBillElement.innerHTML =
+          '<p class="empty">ไม่สามารถโหลดใบแจ้งค่าใช้จ่ายได้</p>';
+
+        historyElement.innerHTML =
+          '<p class="empty">ไม่สามารถโหลดประวัติบิลได้</p>';
+
+      } finally {
+
+        refreshButton.disabled = false;
+
+      }
+
+    }
+
+    function renderBills(bills) {
+
+      const currentBillElement =
+        document.getElementById("currentBill");
+
+      const historyElement =
+        document.getElementById("billHistory");
+
+      if (!bills || bills.length === 0) {
+
+        currentBillElement.innerHTML =
+          '<p class="empty">ยังไม่มีใบแจ้งค่าใช้จ่าย</p>';
+
+        historyElement.innerHTML =
+          '<p class="empty">ยังไม่มีประวัติใบแจ้งหนี้</p>';
+
+        return;
+
+      }
+
+      // เรียงเดือนล่าสุดก่อน
+      const sortedBills = [...bills].sort((a, b) =>
+        String(b.BillingMonth).localeCompare(
+          String(a.BillingMonth)
+        )
+      );
+
+      // บิลล่าสุด
+      const latestBill = sortedBills[0];
+
+      currentBillElement.innerHTML =
+        createBillHTML(latestBill);
+
+      // บิลย้อนหลัง
+      if (sortedBills.length > 1) {
+
+        historyElement.innerHTML =
+          sortedBills.slice(1).map(bill =>
+            createBillHTML(bill)
+          ).join("");
+
+      } else {
+
+        historyElement.innerHTML =
+          '<p class="empty">ยังไม่มีบิลย้อนหลัง</p>';
+
+      }
+
+    }
+
+    function createBillHTML(bill) {
+
+      const status = bill.BillStatus || "ไม่ระบุ";
+
+      const isPaid =
+        status.includes("ชำระ") &&
+        !status.includes("ยังไม่ชำระ");
+
+      const statusClass =
+        isPaid ? "paid" : "unpaid";
+
+      return `
+        <div class="bill">
+
+          <div class="bill-header">
+            <strong>${escapeHTML(bill.BillID)}</strong>
+            <span class="status ${statusClass}">
+              ${escapeHTML(status)}
+            </span>
+          </div>
+
+          <p class="detail">
+            เดือน:
+            ${formatMonth(bill.BillingMonth)}
+          </p>
+
+          <p class="detail">
+            ห้อง:
+            ${escapeHTML(bill.RoomID)}
+          </p>
+
+          <div class="amount">
+            ${formatMoney(bill.TotalAmount)} บาท
+          </div>
+
+          <hr>
+
+          <ul class="bill-detail-list">
+            <li>
+              <span>ค่าเช่าห้อง</span>
+              <span>${formatMoney(bill.RentAmount)} บาท</span>
+            </li>
+
+            <li>
+              <span>ค่าน้ำ (${bill.WaterUnits || 0} หน่วย)</span>
+              <span>${formatMoney(bill.WaterAmount)} บาท</span>
+            </li>
+
+            <li>
+              <span>ค่าไฟ (${bill.ElectricityUnits || 0} หน่วย)</span>
+              <span>${formatMoney(bill.ElectricityAmount)} บาท</span>
+            </li>
+
+            <li>
+              <span>ค่าอินเทอร์เน็ต</span>
+              <span>${formatMoney(bill.InternetAmount)} บาท</span>
+            </li>
+
+            <li>
+              <span>ค่าใช้จ่ายอื่น</span>
+              <span>${formatMoney(bill.OtherAmount)} บาท</span>
+            </li>
+          </ul>
+
+          <hr>
+
+          <p class="detail">
+            วันที่ออกบิล:
+            ${formatDate(bill.IssueDate)}
+          </p>
+
+          <p class="detail">
+            วันครบกำหนด:
+            ${formatDate(bill.DueDate)}
+          </p>
+
+          ${
+            bill.PDFLink
+              ? `<a class="button pdf-button"
+                   href="${safeURL(bill.PDFLink)}"
+                   target="_blank"
+                   rel="noopener">
+                   ดูใบแจ้งหนี้
+                 </a>`
+              : ""
+          }
+
+        </div>
+      `;
+
+    }
+
+    function formatMoney(value) {
+
+      return Number(value || 0).toLocaleString("th-TH", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+      });
+
+    }
+
+    function formatMonth(value) {
+
+      if (!value) return "-";
+
+      const match = String(value).match(/^(\d{4})-(\d{2})$/);
+
+      if (!match) return escapeHTML(value);
+
+      const year = Number(match[1]);
+      const month = Number(match[2]);
+
+      const date = new Date(year, month - 1, 1);
+
+      return date.toLocaleDateString("th-TH", {
+        month: "long",
+        year: "numeric"
+      });
+
+    }
+
+    function formatDate(value) {
+
+      if (!value) return "-";
+
+      const match = String(value).match(/^(\d{4})-(\d{2})-(\d{2})$/);
+
+      if (!match) return escapeHTML(value);
+
+      const date = new Date(
+        Number(match[1]),
+        Number(match[2]) - 1,
+        Number(match[3])
+      );
+
+      return date.toLocaleDateString("th-TH", {
+        day: "numeric",
+        month: "long",
+        year: "numeric"
+      });
+
+    }
+
+    function escapeHTML(value) {
+
+      return String(value ?? "").replace(/[&<>"']/g, function(char) {
+
+        return {
+          "&": "&amp;",
+          "<": "&lt;",
+          ">": "&gt;",
+          '"': "&quot;",
+          "'": "&#39;"
+        }[char];
+
+      });
+
+    }
+
+    function safeURL(value) {
+
+      try {
+
+        const url = new URL(value);
+
+        if (url.protocol === "https:") {
+          return escapeHTML(url.href);
+        }
+
+      } catch (error) {
+
+        return "#";
+
+      }
+
+      return "#";
+
+    }
+
+    initializeLiff();
+
+  </script>
+
+</body>
+</html>
