@@ -185,7 +185,7 @@
 
           document.getElementById("lineInfo").classList.remove("hidden");
 
-          document.getElementById("registrationForm")
+          
             .classList.remove("hidden");
 
           document.getElementById("lineLoginButton")
@@ -221,33 +221,40 @@
     }
 
     
+
+let isSubmitting = false;
+
 document.getElementById("registrationForm")
   .addEventListener("submit", async function(event) {
 
     event.preventDefault();
 
+    if (isSubmitting) return;
+
     const statusMessage = document.getElementById("statusMessage");
+    const registerButton = document.querySelector(".register-btn");
     const registrationCode = document.getElementById("registrationCode").value.trim();
     const roomNumber = document.getElementById("roomNumber").value.trim();
+
+    isSubmitting = true;
+    registerButton.disabled = true;
+    registerButton.textContent = "กำลังลงทะเบียน...";
 
     try {
 
       statusMessage.textContent = "กำลังตรวจสอบข้อมูล...";
 
-      // ตรวจสอบว่าล็อกอิน LINE แล้ว
       if (!liff.isLoggedIn()) {
         liff.login();
         return;
       }
 
-      // ขอ ID Token จาก LINE
       const idToken = liff.getIDToken();
 
       if (!idToken) {
         throw new Error("ไม่พบข้อมูลยืนยันตัวตนจาก LINE");
       }
 
-      // ส่งข้อมูลไปยัง Registration API
       const response = await fetch("https://script.google.com/macros/s/AKfycbzLZPf-QHhwFNU5onwV8toy6rwEvR6qJ8UfW36jX6zSI8b9ujoEaGtt5_Ai1jP8hpCWHg/exec", {
         method: "POST",
         redirect: "follow",
@@ -261,6 +268,57 @@ document.getElementById("registrationForm")
           idToken: idToken
         })
       });
+
+      const result = JSON.parse(await response.text());
+
+      if (result.success) {
+
+        statusMessage.textContent =
+          "ลงทะเบียนสำเร็จ ห้อง " + roomNumber;
+
+        document.getElementById("roomNumber").disabled = true;
+        document.getElementById("registrationCode").disabled = true;
+
+        registerButton.textContent = "ลงทะเบียนสำเร็จ";
+
+      } else {
+
+        const message = result.message || "ลงทะเบียนไม่สำเร็จ";
+
+        if (/ลงทะเบียนแล้ว|ลงทะเบียนไปแล้ว|already registered|already linked|LINE ID.*(ซ้ำ|already)/i.test(message)) {
+
+          statusMessage.textContent =
+            "คุณได้ลงทะเบียนไปแล้ว ไม่จำเป็นต้องลงทะเบียนซ้ำ";
+
+        } else {
+
+          statusMessage.textContent = message;
+
+        }
+
+        registerButton.disabled = false;
+        registerButton.textContent = "ลงทะเบียน";
+
+      }
+
+    } catch (error) {
+
+      console.error(error);
+
+      statusMessage.textContent =
+        "เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง";
+
+      registerButton.disabled = false;
+      registerButton.textContent = "ลงทะเบียน";
+
+    } finally {
+
+      isSubmitting = false;
+
+    }
+
+  });
+
 
       const result = JSON.parse(await response.text());
 
