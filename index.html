@@ -220,7 +220,6 @@
 
     }
 
-    
 
 let isSubmitting = false;
 
@@ -319,33 +318,7 @@ document.getElementById("registrationForm")
 
   });
 
-
-      const result = JSON.parse(await response.text());
-
-      if (result.success) {
-
-        statusMessage.textContent =
-          "ลงทะเบียนสำเร็จ ห้อง " + roomNumber;
-
-      } else {
-
-        statusMessage.textContent =
-          result.message || "ลงทะเบียนไม่สำเร็จ";
-
-      }
-
-    } catch (error) {
-
-      console.error(error);
-
-      statusMessage.textContent =
-        "เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง";
-
-    }
-
-  });
-
-
+    
     initializeLiff();
 
   </script>
